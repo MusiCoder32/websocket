@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <title>express+websocket</title>
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+<div class="container w-50 px-0 ">
+    <div class="bg-info row rounded">
+        <div class="col-md-12">
+            <h3 class="my-0 text-white">七秒记忆时空</h3>
+        </div>
+        <div class="clearfix col-md-12">
+            <button id="count" type="button" class="btn btn-info float-right py-0">
+            </button>
+        </div>
+    </div>
+    <div class="">
+        <div id="login">
+            <p class="">A place with no worries.Talking Anything! </p>
+            <div class="mb-1">姓名:<span><input type="email" id="username" placeholder="昵称"></span></div>
+            <button id="show" class="btn btn-primary">进入聊天室</button>
+        </div>
+    </div>
+    <div class="row" id="content-box">
+        <!--//聊天内容显示区-->
+        <div class="col-md-12 my-0" id="content">
+        </div>
+        <!--聊天内容提交区-->
+        <div>
+            <div class="col-md-12 px-0">
+                <textarea name="" id="msgcli" cols="30" rows="1" class="form-control" placeholder="请输入消息···"></textarea>
+            </div>
+            <div class="d-flex justify-content-between p-0">
+                <button class="btn btn-success" id="send-btn">提交</button>
+                <button id="logout" type="button" class="btn btn-primary">退出登陆</button>
+            </div>
+
+
+        </div>
+    </div>
+</div>
+
+
+<!-- jQuery (Bootstrap 的所有 JavaScript 插件都依赖 jQuery，所以必须放在前边) -->
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+        crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+        crossorigin="anonymous"></script>
+<!-- 加载 Bootstrap 的所有 JavaScript 插件。你也可以根据需要只加载单个插件。 -->
+<script src="js/bootstrap.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+
+    //如果输入姓名不为空，便建立连接
+    $("#show").on('click', function () {
+        var username = $("#username").val().trim();
+        var count = 0;
+        if (username === "") {
+            return;
+        }
+        var socket = io('http://192.168.1.45:3000');
+        //监听事件
+        socket.on('connect', function () {
+            socket.emit('login', username)
+        });
+        $("#login").hide();
+        $("#content-box").show();
+        socket.on('loginsuccess', function (data) {
+            var html = `<p style="margin-bottom:0;font-size:10px;color:#333 "><span class="label label-info">${data.msg}</span></p>`;
+            $('#count').show().html(`${data.title}<span class="badge badge-light">${data.count}</span>`);
+            $("#content").append(html);
+        })
+        socket.on('somelogout', function (data) {
+            var html = `<p style="margin-bottom:0;font-size:10px;color:#333 "><span class="label label-info">${data.msg}</span></p>`;
+            $('#count').show().html(`${data.title}<span class="badge badge-light">${data.count}</span>`);
+            $("#content").append(html);
+        })
+        socket.on('msg', function (data) {
+            if (data.username === username) {
+                var html = `<div id="chat-list" class="my-0 pr-0">
+                <div class="msg-wrap right mb-0">
+                    <div class="header pt-2"><b>:${data.username}</b></div>
+                     <div class="msg">${data.msg} <span class="trigon"></span> </div>
+                </div>
+            </div>`
+            }
+            else {
+                var html = `<div id="chat-list" class="my-0 pl-0">
+                <div class="msg-wrap left mb-0">
+                    <div class="header pt-2"><b>${data.username}:</b></div>
+                     <div class="msg">${data.msg} <span class="trigon"></span> </div>
+                </div>
+            </div>`
+            }
+            $("#content").append(html)
+        });
+        // socket.on('somelogout', function (data) {
+        //     var html = `<p style="margin-bottom:0;font-size:10px;color:#333 "><span class="label label-info">${data.msg}</span></p>`;
+        //     $("#content").append(html)
+        // });
+        // 点击事件
+        $("#send-btn").on('click ', function () {
+            var sendmsg = $('#msgcli').val().trim()
+            if (sendmsg === "") return;
+            socket.emit('send', sendmsg);
+            $('#msgcli').val("")
+        })
+        $("#msgcli").keydown(function (event) {
+            var sendmsg = $('#msgcli').val().trim()
+            if (sendmsg === "") return;
+            if (event.altKey && event.keyCode == 13) {
+                socket.emit('send', $('#msgcli').val());
+                $('#msgcli').val("")
+            }
+        })
+        $("#logout").on("click", function () {
+            if (confirm("确定退出聊天室么")) {
+                socket.emit("logout", username);
+                location.href = 'http://localhost:3000/index'
+            }
+        })
+    })
+
+
+</script>
+<!--// with ES6 import-->
+<!--import io from 'socket.io-client';-->
+
+<!--const socket = io('http://localhost');-->
+</body>
+</html>
